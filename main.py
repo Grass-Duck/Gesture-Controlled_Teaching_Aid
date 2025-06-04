@@ -4,19 +4,21 @@ import tkinter as tk
 from pynput.keyboard import Key, Controller as KeyController
 from pynput.mouse import Button, Controller as ButtonController
 import time
+import sys
 
 def select_port():
     root = tk.Tk()
     root.title("手势控制教具")
     root.geometry("267x200")
     root.resizable(False, False)
+    root.iconbitmap("icon.ico")
 
     ports = serial.tools.list_ports.comports()
     if not ports:
         text = tk.Label(root, text = '未检测到可用串口')
         text.pack(pady = (10, 10))
         root.mainloop()
-        exit()
+        sys.exit()
 
     text = tk.Label(root, text = '可用端口：')
     text.pack(pady = (7, 5))
@@ -28,8 +30,7 @@ def select_port():
     for i, port in enumerate(ports, start = 1):
         listbox.insert(tk.END, f"{i}. {port.description}")
     
-
-    choice = 0
+    choice = -1
     def submit_selection():
         nonlocal choice
         choice = listbox.curselection()[0]
@@ -40,6 +41,8 @@ def select_port():
     
     root.wait_window()
     root.mainloop()
+    if choice == -1:
+        sys.exit()
     return ports[choice].device
 
 def show_action():
@@ -56,7 +59,8 @@ def show_action():
         ax = float(line.split('aX:')[1].split(',')[0])
         ay = float(line.split('aY:')[1].split(',')[0])
         az = float(line.split('aZ:')[1]) - 10.7
-        
+        print(f'{ax}  {ay}  {az}')
+
         if abs(ax - 0.00) < EPS and abs(ay - 39.39) < EPS and abs(az - 5.85) < EPS:
             #print(func)
             match func:
@@ -101,7 +105,7 @@ def show_action():
                         func = '下右'
                     case '上':
                         func = '上右'
-                    case _:
+                    case '空':
                         func = '右'
                 interval = 3
             elif ax > THRESHOLD and abs(az) < THRESHOLD:
@@ -110,18 +114,19 @@ def show_action():
                         func = '上左'
                     case '下':
                         func = '下左'
-                    case _:
+                    case '空':
                         func = '左'
                 interval = 3
         else:
             interval -= 1
-        #print(f'{ax}  {ay}  {az}')
+        
         root.after(1, update)
 
     root = tk.Tk()
     root.title("手势控制教具")
     root.geometry("267x200")
     root.resizable(False, False)
+    root.iconbitmap("icon.ico")
 
     text1 = tk.Label(root, text = '连接成功')
     text1.pack(pady= (20, 5))
@@ -136,8 +141,30 @@ def show_action():
 
     root.mainloop()
     
+def error():
+    root = tk.Tk()
+    root.title("手势控制教具")
+    root.geometry("267x200")
+    root.resizable(False, False)
+    root.iconbitmap("icon.ico")
+
+    text = tk.Label(root, text = '串口打开/读取失败')
+    text.pack(pady = (80, 10))
+    
+    root.wait_window()
+    root.mainloop()
+    sys.exit()
+    
 port = select_port()
 #print(port)
-ser = serial.Serial(port, 9600, timeout = 1)
+try:
+    ser = serial.Serial(port, 9600, timeout = 1)
+except:
+    error()
+    
+if len(ser.readline().decode('utf-8', errors='replace').strip()) < 9:
+    ser.close()
+    error()
+
 show_action()
 ser.close()
